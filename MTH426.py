@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import csv as csv
 
 def getDayMap(s):
 	if (s=="Sunday"):
@@ -61,7 +62,7 @@ def studyTimePerDay (courseList, quizList, freetime):
 			p[i][j] = p_orig[i][j]
 	# calculate net extra time to be studied for quiz per course
 	for i in range (0,M):
-		qt[i] = 4/float(courseList[i][2])*quizList[i][1]*courseList[i][1]/100
+		qt[i] = 5/float(courseList[i][2])*quizList[i][1]*courseList[i][1]/100
 	# calculate remaining number of days after a quiz, remaining days include the day of the quiz as well
 	for i in range (0,M):
 		if (quizList[i][2] < 7):
@@ -129,48 +130,57 @@ def returnCourseOrder (p,courseList):
 	return course_mat,p_mat
 
 def makeDay (T, course_mat, p_mat):
-	T_copy = T
+	T_copy = np.copy(T)
+	T = np.vstack([T,[0,0,0,0,0,0,0]])
+	T_text = np.copy(T)
 	slot_count = T.shape[0] # 34
 	course_count = course_mat.shape[0]
 	current_course = 0
 	for j in range (0,7):
 		day = T[:,j] # 34
+		ttt = T_text[:,j]
 		course_order = course_mat[:,j]
-		p_order = p_mat[:,j]*60
+		p_order = p_mat[:,j]*60.0
 		current_course = 0
 		for i in range (0,slot_count):
-			if (day[i] != 0):
+			if (day[i] != 0): # if slot is not empty
 				continue
-			if (current_course >= course_count):
-				break
-			if (i+1 < slot_count and day[i+1] != 0):
-				while (p_order[current_course] <= 20-day[i]):
-					day[i] = day[i] + p_order[current_course]
-					current_course = current_course + 1
-					if (current_course >= course_count):
-						break
-				if (current_course >= course_count):
-						break
-				if (p_order[current_course] > 20):
-					p_order[current_course] = p_order[current_course] - 20
-					day[i] = 20
-			if (i+1 < slot_count and day[i+1] == 0):
-				while (p_order[current_course] <= 20-day[i]):
-					day[i] = day[i] + p_order[current_course]
-					current_course = current_course + 1
-					if (current_course >= course_count):
-						break
-				if (current_course >= course_count):
-						break
-				if (p_order[current_course] >= 25):
-					p_order[current_course] = p_order[current_course] - 25
-					day[i] = 25
-		T_copy[:,j] = day
-	print type(T_copy)
-	print T_copy
-	# np.savetxt('file_2', T_copy, delimiter=",")
-	# np.savetxt("foo.csv", T_copy, delimiter=",")
-		
+			if (i+1 < slot_count):
+				if (day[i+1] != 0):
+					while (current_course < course_count and p_order[current_course] <= 20-day[i]):
+						day[i] = day[i] + p_order[current_course]
+						x = int(round(p_order[current_course],0))
+						ttt[i] = str(course_order[current_course]) + ":" + str(x) + " "
+						current_course = current_course + 1
+					if (current_course < course_count and p_order[current_course] > 20):
+						p_order[current_course] = p_order[current_course] - 20
+						day[i] = 20
+						ttt[i] = str(course_order[current_course]) + ":" +  str(day[i]) + " "
+				else:
+					while (current_course < course_count and p_order[current_course] <= 25-day[i]):
+						day[i] = day[i] + p_order[current_course]
+						x = int(round(p_order[current_course],0))
+						ttt[i] = str(course_order[current_course]) + ":" +  str(x) + " "
+						current_course = current_course + 1
+					if (current_course < course_count and p_order[current_course] >= 25):
+						p_order[current_course] = p_order[current_course] - 25
+						day[i] = 25
+						ttt[i] = str(course_order[current_course])  + ":" +  str(day[i]) + " "
+		T_text[:,j] = ttt
+	T_text = np.delete(T_text,slot_count-1,0)
+	for j in range (0,7):
+		for i in range (0,slot_count-1):
+			if (T_text[i][j] == 0):
+				T_text[i][j] = ''
+	return T_text
+
+def outputTimeTable (T_text):
+	T_temp = pd.read_csv("Time Table.csv",sep=",",header=None).fillna(0).as_matrix()
+	T_temp[1:35,1:8] = T_text
+	T_temp[0,0] = ''
+	with open('Proposed Time Table.csv', 'wb') as f:
+	 	csv.writer(f).writerows(T_temp)
+
 T, time_slots, days = getTimeTable()
 freetime = getFreeTime(T)
 courseList = pd.read_csv("Course List.csv",sep=",").as_matrix()
@@ -183,6 +193,5 @@ B = 1
 t0,t1,t2 = getFinalTime(freetime,t1,t2,B)
 p = studyTimePerDay(courseList,quizList,freetime)
 course_mat, p_mat = returnCourseOrder(p,courseList)
-print course_mat
-print p_mat
-# makeDay(T,course_mat,p_mat)
+T_text = makeDay(T,course_mat,p_mat)
+outputTimeTable(T_text)

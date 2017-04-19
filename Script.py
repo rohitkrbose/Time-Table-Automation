@@ -71,7 +71,7 @@ def studyTimePerDay (courseList, quizList, freetime):
 			p[i][j] = p_orig[i][j]
 	# calculate net extra time to be studied for quiz per course
 	for i in range (0,M):
-		qt[i] = 5/float(courseList[i][2])*quizList[i][1]*courseList[i][1]/100
+		qt[i] = 4/float(courseList[i][2])*quizList[i][1]*courseList[i][1]/100
 	# calculate remaining number of days after a quiz, remaining days include the day of the quiz as well
 	for i in range (0,M):
 		if (quizList[i][2] < 7):
@@ -123,6 +123,9 @@ def makeDay (T, course_mat, p_mat):
 	for j in range (0,7):
 		day = T[:,j] # slots
 		ttt = T_text[:,j]
+		for k in range (0,slot_count):
+			if (ttt[k]==0):
+				ttt[k] = ""
 		course_order = course_mat[:,j]
 		p_order = p_mat[:,j]*60.0 # converting to minutes
 		current_course = 0
@@ -132,28 +135,35 @@ def makeDay (T, course_mat, p_mat):
 			if (i+1 < slot_count):
 				if (day[i+1] != 0): # if next slot is not empty
 					# continue filling till slot is full
-					while (current_course < course_count and p_order[current_course] <= 20-day[i]):
+					while (current_course < course_count and p_order[current_course]<=20-day[i]):
 						day[i] = day[i] + p_order[current_course]
 						x = int(round(p_order[current_course],0))
-						ttt[i] = str(course_order[current_course]) + ":" + str(x) + " "
+						if (x>0):
+							ttt[i] = ttt[i] + str(course_order[current_course]) + ":" + str(x) + " "
 						current_course = current_course + 1
 					# if course study time takes up entire time of the slot
-					if (current_course < course_count and p_order[current_course] > 20):
-						p_order[current_course] = p_order[current_course] - 20
+					if (current_course < course_count and p_order[current_course] > 20-day[i]):
+						p_order[current_course] = p_order[current_course] - (20-day[i])
+						x = int(round(20-day[i],0))
 						day[i] = 20
-						ttt[i] = str(course_order[current_course]) + ":" +  str(day[i]) + " "
+						if (x>0):
+							ttt[i] = ttt[i] + str(course_order[current_course]) + ":" +  str(x) + " "
+
 				else: # if next slot is empty
 					# continue filling till slot is full
 					while (current_course < course_count and p_order[current_course] <= 25-day[i]):
 						day[i] = day[i] + p_order[current_course]
 						x = int(round(p_order[current_course],0))
-						ttt[i] = str(course_order[current_course]) + ":" +  str(x) + " "
+						if (x>0):
+							ttt[i] = str(course_order[current_course]) + ":" +  str(x) + " "
 						current_course = current_course + 1
 					# if course study time takes up entire time of the slot
-					if (current_course < course_count and p_order[current_course] >= 25):
-						p_order[current_course] = p_order[current_course] - 25
+					if (current_course < course_count and p_order[current_course] > 25-day[i]):
+						p_order[current_course] = p_order[current_course] - (25-day[i])
+						x = int(round(20-day[i],0))
 						day[i] = 25
-						ttt[i] = str(course_order[current_course])  + ":" +  str(day[i]) + " "
+						if (x>0):
+							ttt[i] = ttt[i] + str(course_order[current_course])  + ":" +  str(x) + " "
 		T_text[:,j] = ttt
 	# formatting
 	T_text = np.delete(T_text,slot_count-1,0)
@@ -182,3 +192,5 @@ p = studyTimePerDay(courseList,quizList,freetime)
 course_mat, p_mat = returnCourseOrder(p,courseList)
 T_text = makeDay(T,course_mat,p_mat)
 outputTimeTable(T_text)
+# print course_mat
+# print p_mat
